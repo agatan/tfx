@@ -40,7 +40,8 @@ class IrisPipelineNativeKerasEndToEndTest(tf.test.TestCase):
     self._data_root = os.path.join(os.path.dirname(__file__), 'data')
     self._module_file = os.path.join(
         os.path.dirname(__file__), 'iris_utils_native_keras.py')
-    self._serving_model_dir = os.path.join(self._test_dir, 'serving_model')
+    self._serving_model_dir = os.path.join(self._test_dir, 'iris',
+                                           'serving_model')
     self._pipeline_root = os.path.join(self._test_dir, 'tfx', 'pipelines',
                                        self._pipeline_name)
     self._metadata_path = os.path.join(self._test_dir, 'tfx', 'metadata',
@@ -55,10 +56,20 @@ class IrisPipelineNativeKerasEndToEndTest(tf.test.TestCase):
       execution = tf.io.gfile.listdir(os.path.join(component_path, output))
       self.assertEqual(1, len(execution))
 
+  def assertInfraValidatorPassed(self) -> None:
+    blessing_path = os.path.join(self._pipeline_root, 'InfraValidator',
+                                 'blessing')
+    executions = tf.io.gfile.listdir(blessing_path)
+    self.assertGreaterEqual(len(executions), 1)
+    for exec_id in executions:
+      blessed = os.path.join(blessing_path, exec_id, 'INFRA_BLESSED')
+      self.assertTrue(tf.io.gfile.exists(blessed))
+
   def assertPipelineExecution(self) -> None:
     self.assertExecutedOnce('CsvExampleGen')
     self.assertExecutedOnce('Evaluator')
     self.assertExecutedOnce('ExampleValidator')
+    self.assertExecutedOnce('InfraValidator')
     self.assertExecutedOnce('Pusher')
     self.assertExecutedOnce('SchemaGen')
     self.assertExecutedOnce('StatisticsGen')
@@ -78,7 +89,7 @@ class IrisPipelineNativeKerasEndToEndTest(tf.test.TestCase):
 
     self.assertTrue(tf.io.gfile.exists(self._serving_model_dir))
     self.assertTrue(tf.io.gfile.exists(self._metadata_path))
-    expected_execution_count = 9  # 8 components + 1 resolver
+    expected_execution_count = 10  # 9 components + 1 resolver
     metadata_config = metadata.sqlite_metadata_connection_config(
         self._metadata_path)
     with metadata.Metadata(metadata_config) as m:
@@ -88,6 +99,7 @@ class IrisPipelineNativeKerasEndToEndTest(tf.test.TestCase):
       self.assertEqual(expected_execution_count, execution_count)
 
     self.assertPipelineExecution()
+    self.assertInfraValidatorPassed()
 
     # Runs pipeline the second time.
     BeamDagRunner().run(
