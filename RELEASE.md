@@ -13,8 +13,6 @@
     generic Trainer.
 *   Added support of TF 2.1 runtime configuration for AI Platform Prediction
     Pusher.
-*   Added support for using ML Metadata ArtifactType messages as Artifact
-    classes.
 
 ### Deprecations
 
